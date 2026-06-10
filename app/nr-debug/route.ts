@@ -50,10 +50,18 @@ export async function GET() {
   // the transform below is false, the hook is present but pino's source never
   // flowed through it (e.g. loaded from precompiled V8 bytecode).
   const hooks: Record<string, unknown> = {}
+  const TRANSFORM_MARKER = /nr_asJson|orchestrion|tracingChannel|diagnostics_channel|tracing_channel/
   try {
-    const Mod = nodeRequire('module') as { prototype: { _compile: (...a: unknown[]) => unknown } }
+    const Mod = nodeRequire('module') as {
+      prototype: { _compile: (...a: unknown[]) => unknown }
+      _extensions: Record<string, { name?: string }>
+    }
     hooks.compileFnName = Mod.prototype._compile?.name ?? null
     hooks.compilePatched = Mod.prototype._compile?.name === 'wrappedCompile'
+    // Vercel's bytecode loader can override _extensions['.js'] to run precompiled
+    // bytecode without ever calling _compile. Native Node's handler is named
+    // exactly ''(anonymous) — a non-empty/odd name signals a wrapper is in place.
+    hooks.extJsFnName = Mod._extensions?.['.js']?.name ?? null
   } catch (e) {
     hooks.error = (e as Error)?.message
   }
@@ -64,9 +72,25 @@ export async function GET() {
     const tools = nodeRequire('pino/lib/tools.js') as { asJson?: (...a: unknown[]) => unknown }
     const src = tools?.asJson?.toString() ?? ''
     hooks.pinoAsJsonResolved = Boolean(tools?.asJson)
-    hooks.pinoAsJsonTransformed = /nr_asJson|orchestrion|tracingChannel|diagnostics_channel|tracing_channel/.test(src)
+    hooks.pinoAsJsonTransformed = TRANSFORM_MARKER.test(src)
   } catch (e) {
     hooks.pinoAsJsonError = (e as Error)?.message
+  }
+
+  // 1d) DISAMBIGUATOR. The hook is installed NOW. Force pino/lib/tools.js to be
+  // recompiled this instant by evicting it from the require cache and re-loading.
+  //  - freshTransformed=true  → it WAS just a load-order/timing problem (pino
+  //    compiled before the hook installed); fixable by initializing the agent
+  //    earlier (e.g. a Next instrumentation hook) — agent forwarding preserved.
+  //  - freshTransformed=false → even a fresh compile bypasses the hook → Vercel
+  //    serves it from bytecode, not source; source-transform can't work here.
+  try {
+    const toolsPath = nodeRequire.resolve('pino/lib/tools.js')
+    delete (nodeRequire as unknown as { cache: Record<string, unknown> }).cache[toolsPath]
+    const fresh = nodeRequire('pino/lib/tools.js') as { asJson?: (...a: unknown[]) => unknown }
+    hooks.freshTransformed = TRANSFORM_MARKER.test(fresh?.asJson?.toString() ?? '')
+  } catch (e) {
+    hooks.freshError = (e as Error)?.message
   }
 
   // 2) Is pino's asJson transformed? If so, calling it publishes to this channel.
