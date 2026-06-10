@@ -14,11 +14,19 @@ const nextConfig: NextConfig = {
   // get dropped from the Lambda and pino is never instrumented on Vercel
   // (it works locally only because the files exist in node_modules). Force the
   // whole hook packages into the trace too.
+  // @apm-js-collab/code-transformer parses with these (imported as ESM .mjs,
+  // which nft also misses — it only traced their CJS builds). Without them the
+  // agent throws "Cannot find module meriyah/dist/meriyah.mjs" on bootstrap.
   outputFileTracingIncludes: {
     "/*": [
       "./node_modules/newrelic/**/*",
       "./node_modules/@apm-js-collab/**/*",
       "./node_modules/import-in-the-middle/**/*",
+      "./node_modules/meriyah/**/*",
+      "./node_modules/astring/**/*",
+      "./node_modules/esquery/**/*",
+      "./node_modules/source-map/**/*",
+      "./node_modules/semifies/**/*",
     ],
   },
 };
