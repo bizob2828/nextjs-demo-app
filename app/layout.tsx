@@ -23,19 +23,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const newrelic = require('newrelic')
-  if (newrelic.agent.collector.isConnected() === false) {
-    await new Promise((resolve) => {
-      newrelic.agent.on('connected', resolve)
-    })
-  }
-
-    // getBrowserTimingHeader returns an empty string when the agent is not yet
-    // connected (e.g. missing license key), so no connection wait is needed.
+  // instrumentation.ts connects the agent at server bootstrap, so it is already
+  // connected by the time a request renders this layout. The agent API lives on
+  // the CJS default export (the import namespace itself does not expose it).
+  // getBrowserTimingHeader returns an empty string if the agent is not yet
+  // connected, so no per-request connection wait is needed here.
+  const { default: newrelic } = await import('newrelic')
   const browserTimingHeader = newrelic.getBrowserTimingHeader({
-      hasToRemoveScriptWrapper: true,
-      allowTransactionlessInjection: true,
-    })
+    hasToRemoveScriptWrapper: true,
+    allowTransactionlessInjection: true,
+  })
 
   return (
     <html

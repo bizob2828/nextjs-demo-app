@@ -1,12 +1,33 @@
+import type { EventEmitter } from 'node:events'
+
 export async function register() {
-  // Vercel Functions ignore NODE_OPTIONS, so the agent is never preloaded via
-  // `--require newrelic`. Without that preload the agent installs its source
-  // transform hook only after pino has already been compiled and cached, so
-  // pino is never instrumented. register() runs once at server bootstrap,
-  // before any route module loads pino — importing the agent here installs the
-  // transform hook first, winning the race.
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // @ts-expect-error - newrelic ships no type declarations
-    await import('newrelic')
+  if (process.env.NEXT_RUNTIME !== 'nodejs') {
+    return
   }
+
+  const { default: newrelic } = await import('newrelic')
+  const agent = newrelic?.agent as
+    | (EventEmitter & { collector?: { isConnected?: () => boolean } })
+    | undefined
+  if (!agent || agent.collector?.isConnected?.()) {
+    return
+  }
+
+  // The function stays warm until register() resolves, but freezes right after
+  // the first response — which is why the agent never finished its collector
+  // handshake (runId stayed null). Block bootstrap on the connect so it gets
+  // real wall-clock time here. The success event is the 'started' state (the
+  // agent emits its state name); 'errored' is the failure terminal. Bail after
+  // a timeout so a stalled/failed connect can't hang server startup forever.
+  await new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer)
+      agent.removeListener('started', done)
+      agent.removeListener('errored', done)
+      resolve()
+    }
+    const timer = setTimeout(done, 8000)
+    agent.once('started', done)
+    agent.once('errored', done)
+  })
 }
