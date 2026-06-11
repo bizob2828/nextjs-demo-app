@@ -17,18 +17,18 @@ const nextConfig: NextConfig = {
   // @apm-js-collab/code-transformer parses with these (imported as ESM .mjs,
   // which nft also misses — it only traced their CJS builds). Without them the
   // agent throws "Cannot find module meriyah/dist/meriyah.mjs" on bootstrap.
-  outputFileTracingIncludes: {
-    "/*": [
-      "./node_modules/newrelic/**/*",
-      "./node_modules/@apm-js-collab/**/*",
-      "./node_modules/import-in-the-middle/**/*",
-      "./node_modules/meriyah/**/*",
-      "./node_modules/astring/**/*",
-      "./node_modules/esquery/**/*",
-      "./node_modules/source-map/**/*",
-      "./node_modules/semifies/**/*",
-    ],
-  },
+  //outputFileTracingIncludes: {
+  //  "/*": [
+  //    "./node_modules/newrelic/**/*",
+  //    "./node_modules/@apm-js-collab/**/*",
+  //    "./node_modules/import-in-the-middle/**/*",
+  //    "./node_modules/meriyah/**/*",
+  //    "./node_modules/astring/**/*",
+  //    "./node_modules/esquery/**/*",
+  //    "./node_modules/source-map/**/*",
+  //    "./node_modules/semifies/**/*",
+  //  ],
+  //},
 };
 
 export default nextConfig;
