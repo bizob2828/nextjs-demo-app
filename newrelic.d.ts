@@ -1,6 +1,20 @@
-// The newrelic package ships no type declarations. Declare it loosely so the
-// agent API (getBrowserTimingHeader, agent.collector, etc.) typechecks.
+// The newrelic package ships no type declarations. Declare the slice of the
+// agent API this app actually uses (getBrowserTimingHeader, agent.collector).
 declare module 'newrelic' {
-  const newrelic: any
+  import type { EventEmitter } from 'node:events'
+
+  interface NewRelicAgent extends EventEmitter {
+    collector?: { isConnected?: () => boolean }
+  }
+
+  interface NewRelic {
+    agent?: NewRelicAgent
+    getBrowserTimingHeader(options?: {
+      hasToRemoveScriptWrapper?: boolean
+      allowTransactionlessInjection?: boolean
+    }): string
+  }
+
+  const newrelic: NewRelic
   export default newrelic
 }

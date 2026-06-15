@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- New Relic loads this config via CommonJS require(); it cannot be an ES module. */
 require('dotenv').config()
 
 exports.config = {

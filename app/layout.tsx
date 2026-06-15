@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from 'next/script';
+import { loadNewRelicAgent } from '../lib/agent'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,12 +24,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // instrumentation.ts connects the agent at server bootstrap, so it is already
-  // connected by the time a request renders this layout. The agent API lives on
-  // the CJS default export (the import namespace itself does not expose it).
-  // getBrowserTimingHeader returns an empty string if the agent is not yet
-  // connected, so no per-request connection wait is needed here.
-  const { default: newrelic } = await import('newrelic')
+  // wait for agent to be connected before getting browser header
+  const newrelic = await loadNewRelicAgent() 
   const browserTimingHeader = newrelic.getBrowserTimingHeader({
     hasToRemoveScriptWrapper: true,
     allowTransactionlessInjection: true,
